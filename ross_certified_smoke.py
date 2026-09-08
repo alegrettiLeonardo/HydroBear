@@ -206,8 +206,11 @@ def tilting_pad_smoke(rs) -> dict:
             "TiltingPad.attitude", float(bearing.attitude_angle), 5.064506361232241, 1.0e-2
         ),
     }
-    max_p = float(np.asarray(bearing.maxP).reshape(-1)[0])
-    max_t = float(np.asarray(bearing.maxT).reshape(-1)[0])
+    # In ROSS 2.3, TiltingPad performance arrays live on _results; the bearing
+    # itself delegates plotting but does not expose maxP/maxT as attributes.
+    results = bearing._results
+    max_p = float(np.asarray(results.maxP_list).reshape(-1)[0])
+    max_t = float(np.asarray(results.maxT_list).reshape(-1)[0])
     if not math.isfinite(max_p) or max_p <= 0.0:
         raise AssertionError(f"TiltingPad maxP invalid: {max_p}")
     if not math.isfinite(max_t):
