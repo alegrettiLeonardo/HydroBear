@@ -1,0 +1,66 @@
+name: RotorDin B10 exact-commit executor
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/b10-private-checkout.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  b10:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      QT_QPA_PLATFORM: offscreen
+      TARGET_SHA: 9b2ea63a4faa09855ee709d9d35ea88e588bce06
+    steps:
+      - name: Checkout exact private RotorDin commit
+        uses: actions/checkout@v4
+        with:
+          repository: alegrettiLeonardo/frontend_rotordin
+          ref: ${{ env.TARGET_SHA }}
+          path: frontend_rotordin
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - name: Bind checkout to exact commit
+        working-directory: frontend_rotordin
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test -z "$(git status --porcelain --untracked-files=no)"
+          echo "HEAD=$(git rev-parse HEAD)"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: frontend_rotordin/pyproject.toml
+
+      - name: Install native toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gfortran liblapack-dev libblas-dev \
+            libegl1 libgl1 libxkbcommon-x11-0 libxcb-cursor0 libdbus-1-3
+
+      - name: Install RotorDin + certified ROSS provider
+        working-directory: frontend_rotordin
+        run: |
+          python -m pip install -U pip
+          pip install -e '.[dev,bearing]'
+
+      - name: Execute full formal B10
+        working-directory: frontend_rotordin
+        run: python tools/run_bearing_perf_b10_gate.py --timeout 1800
+
+      - name: Publish B10 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rotordin-b10-exact-9b2ea63
+          path: frontend_rotordin/test_evidence/bearing_perf/
+          if-no-files-found: warn
