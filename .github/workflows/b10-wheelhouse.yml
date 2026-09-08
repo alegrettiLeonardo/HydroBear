@@ -30,13 +30,29 @@ jobs:
             'ross-rotordynamics @ git+https://github.com/petrobras/ross.git@a26a66fe40e8b86aa5e5c203d18cca801e68ff8e'
           python - <<'PY'
           from pathlib import Path
-          files=sorted(p.name for p in Path('wheelhouse').glob('*'))
-          Path('wheelhouse/CONTENTS.txt').write_text('\n'.join(files)+'\n')
-          print('\n'.join(files))
+          root=Path('wheelhouse')
+          files=sorted(p.name for p in root.glob('*'))
+          (root/'CONTENTS.txt').write_text('\n'.join(files)+'\n')
+          qt=root/'qt'
+          core=root/'core'
+          qt.mkdir(); core.mkdir()
+          for p in list(root.glob('*.whl')):
+              target=qt if p.name.lower().startswith(('pyside6','shiboken6')) else core
+              p.rename(target/p.name)
+          (core/'CONTENTS.txt').write_text('\n'.join(sorted(p.name for p in core.glob('*')))+'\n')
+          (qt/'CONTENTS.txt').write_text('\n'.join(sorted(p.name for p in qt.glob('*')))+'\n')
+          print('CORE'); print((core/'CONTENTS.txt').read_text())
+          print('QT'); print((qt/'CONTENTS.txt').read_text())
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: rotordin-b10-wheelhouse-py313-linux
-          path: wheelhouse/
+          name: rotordin-b10-core-wheelhouse-py313-linux
+          path: wheelhouse/core/
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rotordin-b10-qt-wheelhouse-py313-linux
+          path: wheelhouse/qt/
           if-no-files-found: error
           retention-days: 7
