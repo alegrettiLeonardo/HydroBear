@@ -1,0 +1,38 @@
+name: ROSS 2.3 Python 3.13 wheelhouse
+
+on:
+  push:
+    branches: ["ci/ross-certified-smoke-20260908"]
+    paths:
+      - ".github/workflows/ross-wheelhouse-py313.yml"
+  workflow_dispatch:
+
+jobs:
+  wheelhouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Build deterministic wheelhouse
+        run: |
+          python -m pip install --upgrade pip wheel
+          mkdir -p wheelhouse
+          python -m pip wheel --wheel-dir wheelhouse "plotly==5.24.1"
+          python -m pip wheel --wheel-dir wheelhouse "ross-rotordynamics @ git+https://github.com/petrobras/ross.git@a26a66fe40e8b86aa5e5c203d18cca801e68ff8e"
+          python - <<'PY'
+          from pathlib import Path
+          files = sorted(Path('wheelhouse').glob('*.whl'))
+          assert files
+          print('wheel count:', len(files))
+          print('total bytes:', sum(p.stat().st_size for p in files))
+          for p in files:
+              print(p.name, p.stat().st_size)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ross-2.3-py313-wheelhouse
+          path: wheelhouse/*.whl
+          if-no-files-found: error
